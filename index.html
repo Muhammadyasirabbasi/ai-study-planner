@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Study Planner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { --primary: #6c5ce7; --bg: #f8f9fd; --card: #ffffff; --footer-text: #636e72; }
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh; 
+        }
+        .main-content { flex: 1; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+        .container { max-width: 600px; width: 100%; background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .page { display: none; }
+        .active { display: block; animation: fadeIn 0.5s; }
+        h1, h2 { color: var(--primary); text-align: center; }
+        .input-group { margin-bottom: 15px; }
+        label { font-weight: 600; display: block; margin-bottom: 8px; color: #444; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 15px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; margin-top: 10px; }
+        .gen-btn { background: var(--primary); color: white; }
+        .back-btn { background: #dfe6e9; color: #2d3436; margin-top: 20px; }
+        .pdf-btn { background: #00b894; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px; border: 1px solid #eee; text-align: left; }
+        th { background: var(--primary); color: white; }
+        .info-badge { background: #e8f0fe; color: var(--primary); padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 15px; text-align: center; }
+        
+        /* FOOTER STYLE */
+        footer { 
+            text-align: center; 
+            padding: 20px; 
+            background: #fff; 
+            border-top: 1px solid #eee; 
+            color: var(--footer-text);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .tech-name { color: var(--primary); font-weight: 700; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <div class="container">
+        <div id="setupPage" class="page active">
+            <h1>🎓 AI Study Planner</h1>
+            <p style="text-align: center; color: #636e72;">Optimize your learning schedule</p>
+            
+            <div class="input-group">
+                <label>How many days do you have?</label>
+                <input type="number" id="daysInput" placeholder="e.g., 10">
+            </div>
+
+            <div class="input-group">
+                <label>How many hours can you study daily?</label>
+                <input type="number" id="dailyHours" placeholder="e.g., 6" value="6">
+            </div>
+
+            <div id="subjectsContainer">
+                <label>Subjects & Difficulty Level</label>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <input type="text" class="sub-name" placeholder="Subject Name">
+                    <select class="sub-diff" style="width: 120px;">
+                        <option value="3">Hard</option>
+                        <option value="2">Medium</option>
+                        <option value="1">Easy</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="addMoreSubject()" style="background:none; border:none; color:var(--primary); cursor:pointer; font-weight:bold; margin-bottom: 15px;">+ Add Another Subject</button>
+            <button class="btn gen-btn" onclick="generateLogic()">Generate Timetable 🚀</button>
+        </div>
+
+        <div id="resultPage" class="page">
+            <h2>📅 Your Study Schedule</h2>
+            <div id="summaryBadge" class="info-badge"></div>
+            <div id="tableOutput"></div>
+            <button class="btn pdf-btn" onclick="downloadPDF()">Download as PDF 📩</button>
+            <button class="btn back-btn" onclick="goBack()">Go Back & Edit ✏️</button>
+        </div>
+    </div>
+</div>
+
+<footer>
+    Designed by <span class="tech-name">Bright Tech Solutions</span>
+</footer>
+
+<script>
+    function addMoreSubject() {
+        const div = document.createElement('div');
+        div.style = "display: flex; gap: 5px; margin-bottom: 10px;";
+        div.innerHTML = `<input type="text" class="sub-name" placeholder="Subject Name">
+                        <select class="sub-diff" style="width: 120px;">
+                            <option value="3">Hard</option><option value="2">Medium</option><option value="1">Easy</option>
+                        </select>`;
+        document.getElementById('subjectsContainer').appendChild(div);
+    }
+
+    function generateLogic() {
+        const days = parseInt(document.getElementById('daysInput').value);
+        const dailyHrs = parseInt(document.getElementById('dailyHours').value);
+        const names = document.querySelectorAll('.sub-name');
+        const diffs = document.querySelectorAll('.sub-diff');
+
+        if(!days || !names[0].value) { alert("Please fill in all details!"); return; }
+
+        let subjects = [];
+        let totalWeight = 0;
+        for(let i=0; i<names.length; i++) {
+            if(names[i].value.trim() !== "") {
+                let w = parseInt(diffs[i].value);
+                subjects.push({ name: names[i].value, weight: w });
+                totalWeight += w;
+            }
+        }
+
+        let totalStudyMinutes = days * dailyHrs * 60;
+        let breakMinutes = subjects.length * 10 * days; 
+        let netStudyMinutes = totalStudyMinutes - breakMinutes;
+
+        let html = `<table id="pdfTable"><tr><th>Subject</th><th>Total Hours (${days} Days)</th><th>Daily Goal</th></tr>`;
+        
+        subjects.sort((a,b) => b.weight - a.weight).forEach(s => {
+            let totalMinsForSub = Math.round((s.weight / totalWeight) * netStudyMinutes);
+            let dailyMins = Math.round(totalMinsForSub / days);
+            let hoursLabel = (totalMinsForSub/60).toFixed(1);
+
+            html += `<tr><td><b>${s.name}</b></td><td>${hoursLabel} Hours</td><td>${dailyMins} Minutes</td></tr>`;
+        });
+        html += `</table>`;
+
+        document.getElementById('summaryBadge').innerHTML = `You have <b>${days * dailyHrs} study hours</b>.<br>Follow this breakdown!`;
+        document.getElementById('tableOutput').innerHTML = html;
+        document.getElementById('setupPage').classList.remove('active');
+        document.getElementById('resultPage').classList.add('active');
+    }
+
+    function goBack() {
+        document.getElementById('resultPage').classList.remove('active');
+        document.getElementById('setupPage').classList.add('active');
+    }
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("AI Generated Study Plan", 14, 20);
+        doc.autoTable({ html: '#pdfTable', marginTop: 30 });
+        doc.save("My_Study_Plan.pdf");
+    }
+</script>
+</body>
+</html>
